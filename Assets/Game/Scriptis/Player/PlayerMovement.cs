@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : MonoBehaviour
 {
-    [SerializeField] private float speed = 3.5f;
+    [SerializeField] private float speed = 4f;
     private CharacterController characterController;
 
     private void Awake()
