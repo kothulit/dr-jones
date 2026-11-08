@@ -15,6 +15,7 @@ public class GridGenerator : MonoBehaviour
     [SerializeField] private GameObject wallPrefab;
     [Header("Map")]
     [SerializeField] private bool useProceduralMaze = false;
+    [SerializeField] private int mazeSeed = 1;
     [SerializeField] private TextAsset levelMap;
     [SerializeField] private Vector2Int startCell = new Vector2Int(1, 1);
     [SerializeField] private int width = 21;
@@ -290,6 +291,8 @@ public class GridGenerator : MonoBehaviour
                 map[x, z] = CellType.Wall;
             }
         }
+
+        UnityEngine.Random.InitState(mazeSeed);
 
         CarveMaze(1, 1);
 
