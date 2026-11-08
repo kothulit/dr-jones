@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Xml.Serialization;
 using UnityEngine;
 
 public class GridGenerator : MonoBehaviour
@@ -16,9 +14,10 @@ public class GridGenerator : MonoBehaviour
     [SerializeField] private GameObject tilePrefab;
     [SerializeField] private GameObject wallPrefab;
     [Header("Map")]
+    [SerializeField] private bool useProceduralMaze = false;
     [SerializeField] private TextAsset levelMap;
-    [SerializeField] private Vector2Int startCell = new Vector2Int(3, 6);
-    [SerializeField] private int width = 20;
+    [SerializeField] private Vector2Int startCell = new Vector2Int(1, 1);
+    [SerializeField] private int width = 21;
     [SerializeField] private int height = 15;
     [SerializeField] private float cellSize = 1f;
 
@@ -27,12 +26,27 @@ public class GridGenerator : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        if (!TryLoadMap()) return;
-        GenerateGrid();
-        ValidateMapConnectivity();
+        bool mapReady = false;
+
+        if (useProceduralMaze)
+        {
+            mapReady = TryGenerateMaze();
+        }
+        else
+        {
+            mapReady = TryLoadMap();
+        }
+
+        if (!mapReady) return;
+
+        mapReady = ValidateMapConnectivity();
+
+        GenerateMap();
+        
     }
 
-    private void GenerateGrid()
+    #region Base generator and loading text map
+    private void GenerateMap()
     {
         if (tilePrefab == null)
         {
@@ -151,7 +165,9 @@ public class GridGenerator : MonoBehaviour
         Debug.Log("Map loaded sucsesful.");
         return true;
     }
+    #endregion
 
+    #region BFS validation
     private bool IsInsideMap(int x, int z)
     {
         return x>= 0 && z>= 0 && x< width && z< height;
@@ -254,5 +270,90 @@ public class GridGenerator : MonoBehaviour
 
         return false;
     }
-}
+    #endregion
 
+    #region DFS random generation
+    private bool TryGenerateMaze()
+    {
+        if (width < 5 ||  height < 5)
+        {
+            Debug.LogWarning("Grid is to small for maze!!", this);
+            return false;
+        }
+
+        map = new CellType[width, height];
+
+        for (int x=0; x<width; x++)
+        {
+            for (int z=0; z < height; z++)
+            {
+                map[x, z] = CellType.Wall;
+            }
+        }
+
+        CarveMaze(1, 1);
+
+        Debug.Log("Procedural maze generated!", this);
+
+        return true;
+    }
+
+    private void CarveMaze(int  x, int z)
+    {
+        map[x, z] = CellType.None;
+
+        while (true)
+        {
+            List<Vector2Int> neighbors =
+            GetUnvisitedNeighbors(x, z);
+
+            if (neighbors.Count == 0) return;
+
+            int randomIndex = UnityEngine.Random.Range(0, neighbors.Count);
+
+            Vector2Int next = neighbors[randomIndex];
+
+            int wallX = (x + next.x) / 2;
+            int wallY = (z + next.y) / 2;
+
+            map[wallX, wallY] = CellType.None;
+
+            CarveMaze(next.x, next.y);
+        }
+    }
+
+    private List<Vector2Int> GetUnvisitedNeighbors(int x, int z)
+    {
+        List<Vector2Int> neighbors = new List<Vector2Int>();
+
+        AddUnvisitedNeighbor(x + 2, z, neighbors);
+        AddUnvisitedNeighbor(x - 2, z, neighbors);
+        AddUnvisitedNeighbor(x, z + 2, neighbors);
+        AddUnvisitedNeighbor(x, z - 2, neighbors);
+
+        return neighbors;
+    }
+
+    private void AddUnvisitedNeighbor(int x, int z, List<Vector2Int> neighbors)
+    {
+        if (!IsLogicalMazeCell(x, z)) return;
+
+        if (map[x,z] == CellType.Wall)
+        {
+            neighbors.Add(new Vector2Int(x, z));
+        }
+
+    }
+
+    private bool IsLogicalMazeCell(int x, int z)
+    {
+        if (x > 0 &&
+            z > 0 &&
+            x < width - 1 &&
+            z < height - 1 &&
+            x % 2 == 1 &&
+            z % 2 == 1) return true;
+        return false;
+    }
+    #endregion
+}

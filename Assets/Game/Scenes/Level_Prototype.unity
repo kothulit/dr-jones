@@ -576,7 +576,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GridGenerator
   tilePrefab: {fileID: 1106611377223248631, guid: 88e678342e8735b4cbfd0b80d09519ef, type: 3}
   wallPrefab: {fileID: 2043079841607398373, guid: e371a2bbcf20f5b46a98978cc0761a56, type: 3}
-  levelMap: {fileID: 4900000, guid: 1d7162d2d6e7fee4b8116e155672c011, type: 3}
+  levelMap: {fileID: 4900000, guid: d9e91a47a3cc51b4899e46aadd83ab93, type: 3}
   startCell: {x: 3, y: 6}
   width: 20
   height: 15
