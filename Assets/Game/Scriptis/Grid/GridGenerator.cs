@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Xml.Serialization;
 using UnityEngine;
@@ -16,6 +17,7 @@ public class GridGenerator : MonoBehaviour
     [SerializeField] private GameObject wallPrefab;
     [Header("Map")]
     [SerializeField] private TextAsset levelMap;
+    [SerializeField] private Vector2Int startCell = new Vector2Int(3, 6);
     [SerializeField] private int width = 20;
     [SerializeField] private int height = 15;
     [SerializeField] private float cellSize = 1f;
@@ -27,6 +29,7 @@ public class GridGenerator : MonoBehaviour
     {
         if (!TryLoadMap()) return;
         GenerateGrid();
+        ValidateMapConnectivity();
     }
 
     private void GenerateGrid()
@@ -107,7 +110,7 @@ public class GridGenerator : MonoBehaviour
                 return false;
             }
 
-            int z = height -1 - row;
+            int z = height - 1 - row;
 
             for (int x = 0; x < width; x++)
             {
@@ -115,12 +118,12 @@ public class GridGenerator : MonoBehaviour
                 switch (symbol)
                 {
                     case '.':
-                            SetNone(x, z);
-                            break;
+                        SetNone(x, z);
+                        break;
 
                     case '#':
-                            SetWall(x, z);
-                            break;
+                        SetWall(x, z);
+                        break;
 
                     default:
                         Debug.LogWarning($"Unknown symbol {symbol} at row {row + 1}!", this);
@@ -131,15 +134,15 @@ public class GridGenerator : MonoBehaviour
 
         for (int x = 0; x < width; x++)
         {
-            if (map[x,0] != CellType.Wall || map[x,height-1] != CellType.Wall)
+            if (map[x, 0] != CellType.Wall || map[x, height - 1] != CellType.Wall)
             {
                 Debug.LogWarning("Map border has non wall cell!", this); return false;
             }
         }
 
-        for (int z =0 ; z < height; z++)
+        for (int z = 0; z < height; z++)
         {
-            if (map[0, z] != CellType.Wall || map[width -1, z] != CellType.Wall)
+            if (map[0, z] != CellType.Wall || map[width - 1, z] != CellType.Wall)
             {
                 Debug.LogWarning("Map border has non wall cell!", this); return false;
             }
@@ -147,6 +150,109 @@ public class GridGenerator : MonoBehaviour
 
         Debug.Log("Map loaded sucsesful.");
         return true;
+    }
+
+    private bool IsInsideMap(int x, int z)
+    {
+        return x>= 0 && z>= 0 && x< width && z< height;
+    }
+
+    private void VisitNeighbor(int x, int z, bool[,] visited, Queue<Vector2Int> queue)
+    {
+        if (!IsInsideMap(x, z)) return;
+
+        if (visited[x, z]) return;
+
+        if (map[x, z] == CellType.Wall) return;
+
+        visited[x, z] = true;
+
+        queue.Enqueue(new Vector2Int(x, z));
+    }
+
+    private bool ValidateMapConnectivity()
+    {
+        //Check the startingcell
+        if (!IsInsideMap(startCell.x, startCell.y))
+        {
+            Debug.LogWarning("Start cell is outside the map!", this);
+            return false;
+        }
+
+        if (map[startCell.x, startCell.y] == CellType.Wall)
+        {
+            Debug.LogError("Start cell is blocked by a wall!", this);
+            return false;
+        }
+
+        // Create visited array and queue
+        bool[,] visited = new bool[width, height];
+
+        Queue<Vector2Int> cellQueue = new Queue<Vector2Int>();
+
+        // Add the starting cell
+        visited[startCell.x, startCell.y] = true;
+        cellQueue.Enqueue(new Vector2Int(startCell.x, startCell.y));
+
+        int reachableFloorCount = 0;
+        
+        //BFS
+        while (cellQueue.Count > 0)
+        {
+            Vector2Int current = cellQueue.Dequeue();
+            reachableFloorCount++;
+
+            VisitNeighbor(current.x, current.y + 1, visited, cellQueue);
+            VisitNeighbor(current.x, current.y - 1, visited, cellQueue);
+            VisitNeighbor(current.x - 1, current.y, visited, cellQueue);
+            VisitNeighbor(current.x + 1, current.y, visited, cellQueue);
+        }
+
+        // Count all floor cells and find unreachable cells
+        int totalFloorCount = 0;
+        int unreachableCount = 0;
+
+        Vector2Int firstUnreachableCell = Vector2Int.zero;
+
+        for (int x=0; x<width; x++)
+        {
+            for (int z=0; z<height; z++)
+            {
+                if (map[x, z] == CellType.Wall) continue;
+                totalFloorCount++;
+
+                if (!visited[x, z])
+                {
+                    unreachableCount++;
+                    if (unreachableCount == 1)
+                    {
+                        firstUnreachableCell = new Vector2Int(x, z);
+                    }
+                }
+            }
+        }
+
+        // Display the result
+        if (unreachableCount == 0)
+        {
+            Debug.Log(
+                $"Map connectivity OK: " +
+                $"{reachableFloorCount}/{totalFloorCount} cells reachable.",
+                this
+            );
+
+            return true;
+        }
+
+        Debug.LogError(
+            $"Map is not fully connected! " +
+            $"Reachable: {reachableFloorCount}/{totalFloorCount}. " +
+            $"Unreachable: {unreachableCount}. " +
+            $"First unreachable cell: {firstUnreachableCell}.",
+            this
+        );
+
+        return false;
     }
 }
 
