@@ -8,6 +8,10 @@ public class GridGenerator : MonoBehaviour
     {
         None,
         Wall,
+        Idol,
+        Boulder,
+        Hammer,
+        Exit
     }
 
     [Header("Prefabs")]
@@ -21,6 +25,10 @@ public class GridGenerator : MonoBehaviour
     [SerializeField] private int width = 21;
     [SerializeField] private int height = 15;
     [SerializeField] private float cellSize = 1f;
+    [SerializeField] private Transform player;
+
+    private Vector2Int exitWallCell;
+    private Vector2Int exitApproachCell;
 
     private CellType[,] map;
 
@@ -32,6 +40,7 @@ public class GridGenerator : MonoBehaviour
         if (useProceduralMaze)
         {
             mapReady = TryGenerateMaze();
+            CutExit();
         }
         else
         {
@@ -43,7 +52,7 @@ public class GridGenerator : MonoBehaviour
         mapReady = ValidateMapConnectivity();
 
         GenerateMap();
-        
+        player.position = CellToWorld(startCell, 0.1f);
     }
 
     #region Base generator and loading text map
@@ -171,7 +180,7 @@ public class GridGenerator : MonoBehaviour
     #region BFS validation
     private bool IsInsideMap(int x, int z)
     {
-        return x>= 0 && z>= 0 && x< width && z< height;
+        return x >= 0 && z >= 0 && x < width && z < height;
     }
 
     private void VisitNeighbor(int x, int z, bool[,] visited, Queue<Vector2Int> queue)
@@ -212,7 +221,7 @@ public class GridGenerator : MonoBehaviour
         cellQueue.Enqueue(new Vector2Int(startCell.x, startCell.y));
 
         int reachableFloorCount = 0;
-        
+
         //BFS
         while (cellQueue.Count > 0)
         {
@@ -231,9 +240,9 @@ public class GridGenerator : MonoBehaviour
 
         Vector2Int firstUnreachableCell = Vector2Int.zero;
 
-        for (int x=0; x<width; x++)
+        for (int x = 0; x < width; x++)
         {
-            for (int z=0; z<height; z++)
+            for (int z = 0; z < height; z++)
             {
                 if (map[x, z] == CellType.Wall) continue;
                 totalFloorCount++;
@@ -276,7 +285,7 @@ public class GridGenerator : MonoBehaviour
     #region DFS random generation
     private bool TryGenerateMaze()
     {
-        if (width < 5 ||  height < 5)
+        if (width < 5 || height < 5)
         {
             Debug.LogWarning("Grid is to small for maze!!", this);
             return false;
@@ -284,9 +293,9 @@ public class GridGenerator : MonoBehaviour
 
         map = new CellType[width, height];
 
-        for (int x=0; x<width; x++)
+        for (int x = 0; x < width; x++)
         {
-            for (int z=0; z < height; z++)
+            for (int z = 0; z < height; z++)
             {
                 map[x, z] = CellType.Wall;
             }
@@ -301,7 +310,7 @@ public class GridGenerator : MonoBehaviour
         return true;
     }
 
-    private void CarveMaze(int  x, int z)
+    private void CarveMaze(int x, int z)
     {
         map[x, z] = CellType.None;
 
@@ -341,7 +350,7 @@ public class GridGenerator : MonoBehaviour
     {
         if (!IsLogicalMazeCell(x, z)) return;
 
-        if (map[x,z] == CellType.Wall)
+        if (map[x, z] == CellType.Wall)
         {
             neighbors.Add(new Vector2Int(x, z));
         }
@@ -358,5 +367,41 @@ public class GridGenerator : MonoBehaviour
             z % 2 == 1) return true;
         return false;
     }
+
+    private void CutExit()
+    {
+        int sideIndex = UnityEngine.Random.RandomRange(0, 4);
+        int horCellIndex = UnityEngine.Random.RandomRange(1, width - 1);
+        int vertCellIndex = UnityEngine.Random.RandomRange(1, height - 1);
+
+        switch (sideIndex)
+        {
+            case 0:
+                exitWallCell = new Vector2Int(horCellIndex, 0);
+                exitApproachCell = new Vector2Int(horCellIndex, 1);
+                break;
+            case 1:
+                exitWallCell = new Vector2Int(horCellIndex, height - 1);
+                exitApproachCell = new Vector2Int(horCellIndex, height - 2);
+                break;
+            case 2:
+                exitWallCell = new Vector2Int(0, vertCellIndex);
+                exitApproachCell = new Vector2Int(1, vertCellIndex);
+                break;
+            case 3:
+                exitWallCell = new Vector2Int(width - 1, vertCellIndex);
+                exitApproachCell = new Vector2Int(width - 2, vertCellIndex);
+                break;
+        }
+        map[exitWallCell.x, exitWallCell.y] = CellType.None;
+        map[exitApproachCell.x, exitApproachCell.y] = CellType.None;
+    }
     #endregion
+
+    private Vector3 CellToWorld(Vector2Int cell, float y)
+    {
+        return new Vector3(cell.x + 0.5f, y, cell.y + 0.5f);
+    }
+
+
 }
